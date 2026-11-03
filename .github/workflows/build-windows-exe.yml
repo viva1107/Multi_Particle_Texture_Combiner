@@ -1,0 +1,62 @@
+name: Build Windows GUI EXE
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Multi_Particle_Texture_Combiner.py"
+      - "Multi_Particle_Texture_Combiner_GUI.py"
+      - "requirements.txt"
+      - ".github/workflows/build-windows-exe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Check Python sources
+        run: python -m py_compile Multi_Particle_Texture_Combiner.py Multi_Particle_Texture_Combiner_GUI.py
+
+      - name: Build single-file GUI executable
+        run: >-
+          python -m PyInstaller
+          --noconfirm
+          --clean
+          --onefile
+          --windowed
+          --name MultiParticleTextureCombiner
+          --collect-submodules PIL
+          Multi_Particle_Texture_Combiner_GUI.py
+
+      - name: Verify executable exists
+        run: |
+          if (-not (Test-Path "dist/MultiParticleTextureCombiner.exe")) {
+            throw "EXE build output was not found."
+          }
+          Get-Item "dist/MultiParticleTextureCombiner.exe" | Select-Object Name, Length
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultiParticleTextureCombiner-Windows-x64
+          path: dist/MultiParticleTextureCombiner.exe
+          if-no-files-found: error
+          retention-days: 14
